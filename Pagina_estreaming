@@ -1,0 +1,278 @@
+import json
+import os
+from datetime import datetime, timedelta
+
+USUARIOS_JSON="usuarios.json"
+ADMINISTRADORES_JSON="administradores.json"
+CLIENTES_JSON="clientes.json"
+PRODUCTOS_JSON="productos.json"
+SERIES_JSON="series.json"
+PELICULAS_JSON="peliculas.json"
+
+class Usuario:
+    lista_usuarios=[]
+    def __init__(self,nombre, usuario, contraseña, rol=None):
+        self.nombre=nombre
+        self.usuario=usuario
+        self.contraseña=contraseña
+        self.rol=rol
+        Usuario.lista_usuarios.append(self)
+
+    @classmethod
+    def login(cls,usu,password):
+        for usuario_u in cls.lista_usuarios:
+            if usuario_u.usuario == usu and usuario_u.contraseña == password :
+                print(f"Bienvenido {usuario_u.usuario} iniciaste sesión")
+                return usuario_u
+        print("Datos incorrectos")
+        return False
+    
+    @classmethod
+    def logout(cls,usu,password):
+        for usuario_u in cls.lista_usuarios:
+            if usuario_u.usuario == usu and usuario_u.contraseña == password :
+                print(f"Adios {usuario_u.usuario} cerraste sesión, vuelve pronto")
+                return True
+        print("Datos incorrectos")
+        return False
+
+
+class Cliente(Usuario):
+    lista_clientes=[]
+    usuario_actual=None
+    def __init__(self, nombre, usuario, contraseña,fecha_membresia=None):
+        super().__init__(nombre, usuario, contraseña, rol="Cliente")
+        self.fecha_membresia = (
+        datetime.strptime(fecha_membresia, "%Y-%m-%d") if fecha_membresia else None
+        )
+        Cliente.lista_clientes.append(self)
+
+    def ver_series(self):
+        if not self.estado_de_membresia():
+            print("No puedes ver series. tu membresia no esta activa")
+            return
+        if not Serie.lista_series:
+            print("No hay series disponibles")
+            return
+        print("Serries disponibles:")
+        for serie in Serie.lista_series:
+            print(f"-{serie.nombre}({serie.genero}) - {serie.temporadas} Temporadas")
+
+    def ver_peliculas(self):
+        if not self.estado_de_membresia():
+            print("No puedes ver peliculas , tu membresia no esta activa")
+            return
+        if not Pelicula.lista_peliculas:
+            print("No hay peliculas disponibles")
+            return
+        print("Peliculas disponibles:")
+        for pelicula in Pelicula.lista_peliculas:
+            print(f"-{pelicula.nombre}({pelicula.genero}) - Duracion {pelicula.duracion } minutos")
+
+    def pagar_membresia(self):
+        if self.fecha_membresia is not None and datetime.now() <= self.fecha_membresia:
+            print(f"Membresía pagada, valida hasta {self.fecha_membresia.strftime('%Y-%m-%d')}")
+
+        else:
+            self.fecha_membresia= datetime.now() + timedelta(days=30)
+            print(f"Membresía pagada, válida hasta {self.fecha_membresia.strftime('%Y-%m-%d')}")
+
+
+    def estado_de_membresia(self):
+        if self.fecha_membresia is None:
+            print("No tiene membresia activa")
+            return False
+        elif datetime.now()<= self.fecha_membresia:
+            print(f"Membresía activa hasta {self.fecha_membresia.strftime('%Y-%m-%d')}")
+            return True
+        else:
+            print("Tu membresia ha expirado")
+            return False
+
+    @classmethod
+    def registrar_cliente(cls,nombre,usuario,contraseña):
+        for cliente in cls.lista_clientes:
+            if cliente.usuario==usuario:
+                print("El nombre de usuario ya esta en uso")
+                return None
+        nuevo_cliente=Cliente(nombre, usuario, contraseña)
+        cls.guardar_clientes()
+        print(f"Cliente {usuario} registrado exitosamente")
+        return nuevo_cliente
+
+    @classmethod
+    def cargar_clientes(cls):
+        cls.lista_clientes.clear()
+        Usuario.lista_usuarios=[u for u in Usuario.lista_usuarios if not isinstance(u,cls)]
+        if os.path.exists(CLIENTES_JSON):
+            with open(CLIENTES_JSON, "r", encoding="utf-8") as file:
+                data = json.load(file)
+                for cliente_data in data:
+                    Cliente(
+                        cliente_data["nombre"],
+                        cliente_data["usuario"],
+                        cliente_data["contraseña"],
+                        cliente_data.get("fecha_membresia")
+                    )
+
+    @classmethod
+    def guardar_clientes(cls):
+        data = []
+        for cliente in cls.lista_clientes:
+            data.append({
+                "nombre": cliente.nombre,
+                "usuario":cliente.usuario,
+                "contraseña":cliente.contraseña,
+                "fecha_membresia":cliente.fecha_membresia.strftime("%Y-%m-%d") if cliente.fecha_membresia else None
+            })
+        with open(CLIENTES_JSON, "w",encoding="utf-8") as file:
+            json.dump(data, file, indent=4)
+
+class Administrador(Usuario):
+    lista_administradores=[]
+    def __init__(self, nombre, usuario, contraseña):
+        super().__init__(nombre, usuario, contraseña, rol="Administrador")
+        Administrador.lista_administradores.append(self)
+
+    def agregar_serie(self,nombre,duracion, actores,genero, temporadas):
+        nueva_serie=Serie(nombre, duracion,actores,genero,temporadas)
+        Serie.guardar_series()
+        print(f"Serie'{nombre} agregada correctamente'")
+
+    def agregar_pelicula(self,nombre,duracion,actores,genero):
+        nueva_pelicula=Pelicula(nombre,duracion,actores,genero)
+        Pelicula.guardar_peliculas()
+        print(f"Pelicula'{nombre} agregada correctamente'")
+
+    def retirar_serie(self,nombre):
+        for serie in Serie.lista_series:
+            if serie.nombre==nombre:
+                Serie.lista_series.remove(serie)
+                Serie.guardar_series()
+                print(f"Serie'{nombre}' retirada correctamente")
+                return
+        print(f"No se encontro la serie '{nombre}'")
+
+    def retirar_pelicula(self,nombre):
+        for pelicula in Pelicula.lista_peliculas:
+            if pelicula.nombre==nombre:
+                Pelicula.lista_peliculas.remove(pelicula)
+                Pelicula.guardar_peliculas()
+                print(f"Pelicula '{nombre}' retirada correctamente")
+                return
+        print(f"No se ha encontrado la pelicula '{nombre}'")
+
+    @classmethod
+    def agregar_administrador(cls, nombre, usuario, contraseña):
+        for admin in cls.lista_administradores:
+            if admin.usuario==usuario:
+                print("El nombre de usuario ya esta en uso")
+                return None
+        nuevo_admin=Administrador(nombre,usuario,contraseña)
+        cls.guardar_administradores()
+        print(f"Administrador {usuario} registrado exitosamente")
+        return nuevo_admin
+
+    @classmethod
+    def cargar_administradores(cls):
+        cls.lista_administradores.clear()
+        Usuario.lista_usuarios=[u for u in Usuario.lista_usuarios if not isinstance(u, cls)]
+        if os.path.exists(ADMINISTRADORES_JSON):
+            with open(ADMINISTRADORES_JSON, "r", encoding="utf-8") as file:
+                data = json.load(file)
+                for Administrador_data in data:
+                    Administrador(
+                        Administrador_data["nombre"],
+                        Administrador_data["usuario"],
+                        Administrador_data["contraseña"]
+                    )
+
+    @classmethod
+    def guardar_administradores(cls):
+        data = []
+        for administrador in cls.lista_administradores:
+            data.append({
+                "nombre": administrador.nombre,
+                "usuario":administrador.usuario,
+                "contraseña":administrador.contraseña
+            })
+        with open(ADMINISTRADORES_JSON, "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=4)
+
+class Producto:
+    lista_productos=[]
+    def __init__(self, nombre, duracion, actores):
+        self.nombre=nombre
+        self.duracion=duracion
+        self.actores=actores
+
+class Pelicula(Producto):
+    lista_peliculas=[]
+    def __init__(self, nombre, duracion, actores, genero):
+        super().__init__(nombre, duracion, actores)
+        self.genero=genero
+        Pelicula.lista_peliculas.append(self)
+
+    @classmethod
+    def cargar_Peliculas(cls):
+        Pelicula.lista_peliculas.clear()
+        if os.path.exists(PELICULAS_JSON):
+            with open(PELICULAS_JSON, "r", encoding="utf-8") as file:
+                data = json.load(file)
+                for Pelicula_data in data:
+                    Pelicula(
+                        Pelicula_data["nombre"],
+                        Pelicula_data["duracion"],
+                        Pelicula_data["actores"],
+                        Pelicula_data["genero"]
+                    )
+
+    @classmethod
+    def guardar_peliculas(cls):
+        data = []
+        for pelicula in cls.lista_peliculas:
+            data.append({
+                "nombre": pelicula.nombre,
+                "duracion":pelicula.duracion,
+                "actores":pelicula.actores,
+                "genero":pelicula.genero
+            })
+        with open(PELICULAS_JSON, "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=4)
+
+class Serie(Producto):
+    lista_series=[]
+    def __init__(self, nombre, duracion, actores,genero, temporadas):
+        super().__init__(nombre, duracion, actores)
+        self.genero=genero
+        self.temporadas=temporadas
+        Serie.lista_series.append(self)
+
+    @classmethod
+    def cargar_series(cls):
+        Serie.lista_series.clear()
+        if os.path.exists(SERIES_JSON):
+            with open(SERIES_JSON, "r", encoding="utf-8") as file:
+                data = json.load(file)
+                for Serie_data in data:
+                    Serie(
+                        Serie_data["nombre"],
+                        Serie_data["duracion"],
+                        Serie_data["actores"],
+                        Serie_data["genero"],
+                        Serie_data["temporadas"]
+                    )
+
+    @classmethod
+    def guardar_series(cls):
+        data = []
+        for serie in cls.lista_series:
+            data.append({
+                "nombre": serie.nombre,
+                "duracion":serie.duracion,
+                "actores":serie.actores,
+                "genero":serie.genero,
+                "temporadas":serie.temporadas
+            })
+        with open(SERIES_JSON, "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=4)
