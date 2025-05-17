@@ -1,0 +1,466 @@
+import tkinter as tk
+from PIL import Image, ImageTk
+from Plataforma_streaming import *
+from tkinter import messagebox
+from tkinter import ttk
+from datetime import datetime,timedelta
+
+def venta_inicio():
+    global ventana1,entrada1,entrada2
+
+    Cliente.cargar_clientes()
+    Administrador.cargar_administradores()
+    Pelicula.cargar_Peliculas()
+    Serie.cargar_series()
+    ventana1=tk.Tk()
+    ventana1.title("Inicio de sesion")
+    ventana1.geometry("400x400")
+    ventana1.config(bg="lightblue")
+
+    ventana1.iconbitmap("c://Users//eduar//OneDrive//Proyecto_fina_progra//d1bc2733-d33d-4f60-838f-e1d5618a07d4.ico")
+
+    canvas=tk.Canvas(ventana1,width=400, height=400)
+    canvas.pack()
+    imagen=Image.open("c://Users//eduar//OneDrive//Proyecto_fina_progra//fondo_login.jpg")
+    fondo= ImageTk.PhotoImage(imagen)
+    canvas.create_image(0,0, anchor=tk.NW, image=fondo)
+    canvas.image=fondo
+
+    fuente_titulo=("Arial",16,"bold")
+    titulo=tk.Label(ventana1,text="Memeflix", bg="lightblue",font=fuente_titulo)
+    canvas.create_window(200,30,window=titulo)
+
+    funete_personalizada=("Arial",12, "bold")
+    etiqueta1=tk.Label(ventana1,text="Usuario", bg="lightblue",font=funete_personalizada)
+    entrada1=tk.Entry(ventana1)
+    etiqueta2= tk.Label(ventana1,text="Contraseña",bg="lightblue", font=funete_personalizada)
+    entrada2=tk.Entry(ventana1, show="*")
+
+    canvas.create_window(100, 100, window=etiqueta1)
+    canvas.create_window(250, 100, window=entrada1)
+    canvas.create_window(100, 150, window=etiqueta2)
+    canvas.create_window(250, 150, window=entrada2)
+
+    boton_crear = tk.Button(ventana1, text="Crear cuenta", command=agregar_cliente, width=10, height=2, font=("Arial", 10, "bold"))
+    canvas.create_window(200, 300, window=boton_crear)
+
+    boton_salir = tk.Button(ventana1, text="Salir", command=alcerrar, width=10, height=2, font=("Arial", 10, "bold"))
+    canvas.create_window(200, 350, window=boton_salir)
+
+    boton_login=tk.Button(ventana1, text="Iniciar sesion", command=inicio)
+    canvas.create_window(200,200, window=boton_login)
+    ventana1.protocol("WM_DELETE_WINDOW", alcerrar)
+
+    ventana1.mainloop()
+    
+
+def alcerrar():
+    Cliente.guardar_clientes()
+    Administrador.guardar_administradores()
+    Pelicula.guardar_peliculas()
+    Serie.guardar_series()
+    
+    ventana1.destroy()
+
+def inicio():
+    usuario=entrada1.get()
+    password=entrada2.get()
+    usuario_iniciar=Usuario.login(usuario,password)
+
+    if not usuario_iniciar:
+        messagebox.showinfo("Error", "Credenciales incorrectas")
+        return
+    
+    Usuario.usuario_actual=usuario_iniciar
+    
+    ventana1.destroy()
+
+    if usuario_iniciar.rol=="Administrador":
+        ventanaadmin()
+    elif usuario_iniciar.rol=="Cliente":
+        ventanacliente()
+
+def ventanaadmin():
+    ventana2=tk.Tk()
+    ventana2.title("Ventana admin")
+    ventana2.geometry("500x500")
+    ventana2.resizable(False,False)
+
+    imagen_fondo=Image.open("c://Users//eduar//OneDrive//Proyecto_fina_progra//_89d4b91b-75d4-461e-ad5d-b665ca4.jpg")
+    imagen_fondo=imagen_fondo.resize((500,500))
+    fondo=ImageTk.PhotoImage(imagen_fondo)
+
+    canvas=tk.Canvas(ventana2, width=500, height=500)
+    canvas.pack(fill="both",expand=True)
+    canvas.create_image(0,0, anchor=tk.NW, image=fondo)
+    canvas.image=fondo
+
+    titulo= tk.Label(ventana2, text="Panel de administrador", font=("Arial",16,"bold"), bg="lightgray")
+    canvas.create_window(300,50,window=titulo)
+    
+    botones=[
+        ("Agregar serie", Agregar_serie),
+        ("Agregar pelicula", Agregar_pelicula),
+        ("Retirar serie", Retirar_serie),
+        ("Retirar pelicula", Retirar_pelicula),
+        ("Agregar administrador",Agregar_administrador),
+        ("Cerrar sesion",lambda:cerrar_sesion(ventana2))
+    ]
+
+    for i,(texto,comando) in enumerate(botones):
+        boton=tk.Button(ventana2, text=texto, command=comando, width=20, height=2, font=("Arial",10,"bold"))
+        canvas.create_window(300, 120+i*60, window=boton)
+
+    ventana2.mainloop()
+
+def Agregar_serie():
+    
+    def agregar_serie():
+        nombre=entry_nombre.get()
+        duracion=entry_duracion.get()
+        actores=entry_actores.get()
+        genero=entry_genero.get()
+        temporadas=entry_temporadas.get()
+
+        if not nombre or not duracion or not temporadas:
+            messagebox.showerror("Error", "Completa todos los campos obligatorios")
+            return
+        
+        try:
+            temporadas=int(temporadas)
+        except ValueError:
+            messagebox.showerror("Error", "Las temporadas debens ser representadas con numero")
+            return
+
+        new_serie = Serie(nombre, duracion, actores.split(','), genero, int(temporadas))
+        Serie.guardar_series()
+        
+        
+        messagebox.showinfo("Exito", f"Serie '{nombre}' agregada correctamente")
+        ventana_agregar_serie.destroy()
+    
+    ventana_agregar_serie=tk.Toplevel()
+    ventana_agregar_serie.title("Agregar serie")
+
+    tk.Label(ventana_agregar_serie, text="Nombre de la serie").pack()
+    entry_nombre=tk.Entry(ventana_agregar_serie)
+    entry_nombre.pack()
+
+    tk.Label(ventana_agregar_serie, text="Duracion (min)").pack()
+    entry_duracion=tk.Entry(ventana_agregar_serie)
+    entry_duracion.pack()
+
+    tk.Label(ventana_agregar_serie, text="Actores(separados por coma)").pack()
+    entry_actores=tk.Entry(ventana_agregar_serie)
+    entry_actores.pack()
+
+    tk.Label(ventana_agregar_serie, text="Genero").pack()
+    entry_genero=tk.Entry(ventana_agregar_serie)
+    entry_genero.pack()
+
+    tk.Label(ventana_agregar_serie, text="Temporadas").pack()
+    entry_temporadas=tk.Entry(ventana_agregar_serie)
+    entry_temporadas.pack()
+
+    tk.Button(ventana_agregar_serie, text="Agregar", command=agregar_serie).pack()
+
+
+def Agregar_pelicula():
+    
+    def agregar_pelicula():
+        nombre=entry_nombre.get()
+        duracion=entry_duracion.get()
+        actores=entry_actores.get()
+        genero=entry_genero.get()
+
+        if not nombre or not duracion:
+            messagebox.showerror("Error", "Completa todos los campos oblligatorios")
+            return
+
+        new_pelicula=Pelicula(nombre,duracion, actores.split(','), genero)
+        Pelicula.guardar_peliculas()
+
+        messagebox.showinfo("Exito", f"Pelicula '{nombre}' agregada correctamente")
+        ventana_agregar_pelicula.destroy()
+
+    ventana_agregar_pelicula=tk.Toplevel()
+    ventana_agregar_pelicula.title("Agregar Pelicula")
+
+    tk.Label(ventana_agregar_pelicula, text="Nombre de la pelicula").pack()
+    entry_nombre= tk.Entry(ventana_agregar_pelicula)
+    entry_nombre.pack()
+
+    tk.Label(ventana_agregar_pelicula, text="Duracion (min)").pack()
+    entry_duracion=tk.Entry(ventana_agregar_pelicula)
+    entry_duracion.pack()
+
+    tk.Label(ventana_agregar_pelicula, text="Actores ( serparados por coma )").pack()
+    entry_actores=tk.Entry(ventana_agregar_pelicula)
+    entry_actores.pack()
+
+    tk.Label(ventana_agregar_pelicula, text="Genero").pack()
+    entry_genero=tk.Entry(ventana_agregar_pelicula)
+    entry_genero.pack()
+
+    tk.Button(ventana_agregar_pelicula, text="Agregar", command=agregar_pelicula).pack()
+
+def Retirar_serie():
+    
+    def retirar_serie():
+        nombre=entry_nombre.get()
+
+        serie_a_retirar= None
+        for serie in Serie.lista_series:
+            if serie.nombre==nombre:
+                serie_a_retirar=serie
+                break
+
+        if serie_a_retirar:
+            Serie.lista_series.remove(serie_a_retirar)
+            Serie.guardar_series()
+            messagebox.showinfo("Exito", f"Serie '{nombre}' retirada correctamente")
+            ventana_retirar_serie.destroy()
+        else:
+            messagebox.showinfo("Error", "serie no encontrada")
+
+    ventana_retirar_serie=tk.Toplevel()
+    ventana_retirar_serie.title("Retirar serie")
+
+    tk.Label(ventana_retirar_serie, text="Nombre de la serie a retirar").pack()
+    entry_nombre=tk.Entry(ventana_retirar_serie)
+    entry_nombre.pack()
+
+    tk.Button(ventana_retirar_serie,text="Retirar",command=retirar_serie).pack()
+
+
+def Retirar_pelicula():
+
+    def retirar_pelicula():
+        nombre=entry_nombre.get()
+
+        pelicula_a_retirar=None
+        for pelicula in Pelicula.lista_peliculas:
+            if pelicula.nombre==nombre:
+                pelicula_a_retirar=pelicula
+                break
+
+        if pelicula_a_retirar:
+            Pelicula.lista_peliculas.remove(pelicula_a_retirar)
+            Pelicula.guardar_peliculas()
+            messagebox.showinfo("Exito", f"Pelicula'{nombre}' retirada correctamente")
+            ventana_retirar_pelicula.destroy()
+        else:
+            messagebox.showinfo("Error", "Pelicula no encontrada")
+
+    ventana_retirar_pelicula=tk.Toplevel()
+    ventana_retirar_pelicula.title("Retirar pelicula")
+
+    tk.Label(ventana_retirar_pelicula, text="Nombre de la pelicula a retirar").pack()
+    entry_nombre=tk.Entry(ventana_retirar_pelicula)
+    entry_nombre.pack()
+
+    tk.Button(ventana_retirar_pelicula, text="Retirar", command=retirar_pelicula).pack()
+
+def Agregar_administrador():
+    def guardar_admin():
+        nombre=entry_nombre.get()
+        usuario=entry_usuario.get()
+        contraseña=entry_contraseña.get()
+
+        if not nombre or not usuario or not contraseña:
+            messagebox.showerror("Error","Completa todos los campos")
+            return
+        
+        for admin in Administrador.lista_administradores:
+            if admin.usuario==usuario:
+                messagebox.showerror("Error", "Nombre de usuario ya existente")
+                return
+        
+        Administrador.agregar_administrador(nombre,usuario, contraseña)
+        messagebox.showinfo("exito", f"Administrador '{usuario}' agregado correctamente")
+        ventana_agregar_admin.destroy()
+    
+    ventana_agregar_admin=tk.Toplevel()
+    ventana_agregar_admin.title("Agregar asministrador")
+
+    tk.Label(ventana_agregar_admin,text="Nombre completo").pack()
+    entry_nombre=tk.Entry(ventana_agregar_admin)
+    entry_nombre.pack()
+
+
+    tk.Label(ventana_agregar_admin,text="Nombre de usuario").pack()
+    entry_usuario=tk.Entry(ventana_agregar_admin)
+    entry_usuario.pack()
+
+    tk.Label(ventana_agregar_admin,text="Contraseña").pack()
+    entry_contraseña=tk.Entry(ventana_agregar_admin)
+    entry_contraseña.pack()
+
+    tk.Button(ventana_agregar_admin, text="Agregar", command=guardar_admin).pack()
+
+def cerrar_sesion(ventana):
+    ventana.destroy()  
+    venta_inicio()
+
+
+def ventanacliente():
+    ventana_cliente=tk.Tk()
+    ventana_cliente.title("Ventana de cliente")
+    ventana_cliente.geometry("500x500")
+    ventana_cliente.resizable(False, False)
+
+    imagen_fondo= Image.open("c://Users//eduar//OneDrive//Proyecto_fina_progra//_6aad0341-b44e-479e-ad88-d9fe629.jpg")
+    imagen_fondo=imagen_fondo.resize((500,500))
+    fondo=ImageTk.PhotoImage(imagen_fondo)
+
+    canvas=tk.Canvas(ventana_cliente, width=500, height=500)
+    canvas.pack(fill="both", expand=True)
+    canvas.create_image(0,0, anchor=tk.NW, image=fondo)
+    canvas.image=fondo
+
+    titulo= tk.Label(ventana_cliente, text="Bienvenido a Memeflix", font=("Arial", 16, "bold"), bg="lightgray")
+    canvas.create_window(250,50, window=titulo)
+
+    botones =[
+        ("Ver peliculas", ver_pelicula),
+        ("Ver series", ver_series),
+        ("Pagar membresia", pagar_membresia),
+        ("Estado de la membresia", estado_de_membresia), 
+        ("Agregar usuario", agregar_cliente),
+        ("Cerrar sesion", lambda:cerrar_sesion(ventana_cliente))
+    ]
+
+    for i, (texto,comando) in enumerate(botones):
+        boton=tk.Button(ventana_cliente, text=texto, command=comando ,width=25, height=2, font=("Arial", 10, "bold"))
+        canvas.create_window(250,120+i*60, window=boton)
+    
+    ventana_cliente.mainloop()
+
+
+def ver_pelicula():
+    if not membresia_activa():
+        messagebox.showerror("Membresia vencida", "debes pagar la membresia para ver las peliculas")
+        return
+
+    ventana_ver_peliculas= tk.Toplevel()
+    ventana_ver_peliculas.title("Peliculas disponibles")
+    ventana_ver_peliculas.geometry("1000x400")
+
+    tree=ttk.Treeview(ventana_ver_peliculas, columns=("Nombre","Duracion", "Actores", "Genero"), show="headings")
+    tree.heading("Nombre", text="Nombre")
+    tree.heading("Duracion", text="Duracion")
+    tree.heading("Actores", text="Actores")
+    tree.heading("Genero", text="Genero")
+    tree.pack(fill="both", expand=True)
+
+    for pelicula in Pelicula.lista_peliculas:
+        actores=", ".join(pelicula.actores)
+        tree.insert("", "end", values=(pelicula.nombre,pelicula.duracion, actores,pelicula.genero))
+
+def ver_series():
+    if not membresia_activa():
+        messagebox.showerror("Membresia vencida", "debes pagar la membresia para ver las series")
+        return
+
+    ventana_ver_series=tk.Toplevel()
+    ventana_ver_series.title("Series disponibles")
+    ventana_ver_series.geometry("1000x400")
+
+    tree=ttk.Treeview(ventana_ver_series, columns=("Nombre","Duracion", "Actores", "Genero", "Temporadas",), show="headings")
+    tree.heading("Nombre", text="Nombre")
+    tree.heading("Duracion", text="Duracion")
+    tree.heading("Actores", text="Actores")
+    tree.heading("Genero", text="Genero")
+    tree.heading("Temporadas", text="Temporadas")
+    tree.pack(fill="both", expand=True)
+
+    for serie in Serie.lista_series:
+        actores=", ".join(serie.actores)
+        tree.insert("", "end", values=(serie.nombre,serie.duracion, actores, serie.genero, serie.temporadas))
+
+def pagar_membresia():
+    usuario_actual=Usuario.usuario_actual
+
+    if not isinstance(usuario_actual,Cliente):
+        messagebox.showerror("Error", "Solo los clientes pueden pagar la membresia")
+        return
+    
+    usuario_actual.fecha_membresia=datetime.now()
+    Cliente.guardar_clientes()
+    messagebox.showinfo("Exito", "Membresia pagada exitosamente")
+
+def estado_de_membresia():
+    usuario=Usuario.usuario_actual
+
+    if not isinstance(usuario, Cliente) or not usuario.fecha_membresia:
+        messagebox.showerror("Error", "Solo los clientes pueden consultar la membresía.")
+        return
+        
+    if not usuario.fecha_membresia:
+        messagebox.showinfo("Membresia", "No has pagado ninguna membresia aun")
+        return
+    
+    try:
+        fecha_membresia=usuario.fecha_membresia
+    except ValueError:
+        messagebox.showerror("Error", "Formato de fecha valido")
+        return
+    
+    hoy=datetime.now()
+    diferencia=hoy-fecha_membresia
+
+    if diferencia.days <= 30:
+        restante=30-diferencia.days
+        messagebox.showinfo("Membresia", f"Tumembresia esta activa. \nDías restantes: {restante} ")
+    else:
+        messagebox.showinfo("Membresia", "Tu membresia ha vencido")
+
+def agregar_cliente():
+    def guardar_cli():
+        nombre=entry_nombre.get()
+        usuario=entry_usuario.get()
+        contraseña=entry_contraseña.get()
+
+        if not nombre or not usuario or not contraseña:
+            messagebox.showerror("Error","Completa todos los campos")
+            return
+        
+        for cli in Cliente.lista_clientes:
+            if cli.usuario==usuario:
+                messagebox.showerror("Error", "Nombre de usuario ya existente")
+                return
+        
+        Cliente.registrar_cliente(nombre,usuario, contraseña)
+        messagebox.showinfo("exito", f"cliente '{usuario}' agregado correctamente")
+        ventana_agregar_cli.destroy()
+    
+    ventana_agregar_cli=tk.Toplevel()
+    ventana_agregar_cli.title("Agregar cliente")
+
+    tk.Label(ventana_agregar_cli,text="Nombre completo").pack()
+    entry_nombre=tk.Entry(ventana_agregar_cli)
+    entry_nombre.pack()
+
+
+    tk.Label(ventana_agregar_cli,text="Nombre de usuario").pack()
+    entry_usuario=tk.Entry(ventana_agregar_cli)
+    entry_usuario.pack()
+
+    tk.Label(ventana_agregar_cli,text="Contraseña").pack()
+    entry_contraseña=tk.Entry(ventana_agregar_cli)
+    entry_contraseña.pack()
+
+    tk.Button(ventana_agregar_cli, text="Agregar", command=guardar_cli).pack()
+
+def membresia_activa():
+    usuario=Usuario.usuario_actual
+
+    if not isinstance(usuario, Cliente) or not usuario.fecha_membresia:
+        return False
+    
+    fecha_membresia=usuario.fecha_membresia
+    vencimiento= fecha_membresia + timedelta(days=30)
+    return datetime.now()<= vencimiento
+    
+
+venta_inicio()
